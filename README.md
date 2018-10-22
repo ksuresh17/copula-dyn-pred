@@ -1,8 +1,8 @@
 # copula-dyn-pred
 R code for "A Gaussian copula approach for dynamic prediction of survival with a longitudinal biomarker" 
 
-This repository contains R code for the simulation and real data analysis. Required packages are "survival". The version of R used to perform the analyses was ___.
+This repository contains R code for the simulation and real data analysis. The version of R used to perform the analyses was 3.4.3.
 
-For the simulation study, the R script "______" produces Figures X, X, X and the Tables provided in the Supplement. 
+The R script "SimulationCode.R" contains the code for generating data under Simulation Scenario 1a and fitting the joint, landmark, and copula models (including the code for maximum likelihood estimation under the Gaussian and Student t copula) . It requires loading "PredictionFunctions.R", which contains the functions to obtain the dynamic predictions for the joint, landmark, and copula models.
 
-For the real data analysis, the R data set heart.valve was used from the joineR package. 
+For the real data analysis, the R data set heart.valve was used from the joineR package. The code to produce Figures 5 and 6 are in the R script "HVData.R". 
