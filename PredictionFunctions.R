@@ -3,40 +3,6 @@
 #######################################################
 #Landmark Models 
 #######################################################
-#LM0 
-BSpredict_LM0<-function(bh,bet,zdata,t0,xdata,w_predict)
-{
-  Fw <- NULL
-  tti<-t0
-  for(i in 1:length(zdata))
-  {
-    sfi<-subset(bh,bh$strata==paste0("LM=",tti))
-    sfi$haz0<-diff(c(0,sfi$hazard))
-    sfi$hazard<-sfi$haz0* exp(bet[1]*xdata[i]+bet[2]*zdata[i])
-    sfi$Haz <- cumsum(sfi$hazard)
-    tmp <- evalstep(sfi$time,sfi$Haz,c(tti,tti+w_predict),subst=0)
-    Fw <- c(Fw,1-exp(-(tmp[2]-tmp[1])))
-  }
-  return(Fw)
-}
-
-#LMInt0
-BSpredict_LMInt0<-function(bh,bet,zdata,t0,xdata,w_predict)
-{
-  Fw <- NULL
-  tti<-t0
-  for(i in 1:length(zdata))
-  {
-    sfi<-subset(bh,bh$strata==paste0("LM=",tti))
-    sfi$haz0<-diff(c(0,sfi$hazard))
-    sfi$hazard<-sfi$haz0* exp(bet[1]*xdata[i]+bet[2]*zdata[i]+bet[3]*xdata[i]*zdata[i])
-    sfi$Haz <- cumsum(sfi$hazard)
-    tmp <- evalstep(sfi$time,sfi$Haz,c(tti,tti+w_predict),subst=0)
-    Fw <- c(Fw,1-exp(-(tmp[2]-tmp[1])))
-  }
-  return(Fw)
-}
-
 #LM1 
 BSpredict_LM1<-function(bh,bet,zdata,t0,xdata,w_predict)
 {
@@ -117,90 +83,6 @@ BSpredict_LMInt2<-function(bh,bet,zdata,t0,xdata,w_predict)
   return(Fw)
 }
 
-#LM3
-BSpredict_LM3<-function(bh,bet,zdata,t0,xdata,w_predict)
-{
-  nt <- length(zdata)
-  Fw <- NULL
-  sfi<-bh
-  sfi$haz0<-diff(c(0,sfi$hazard))
-  for(i in 1:nt)
-  {
-    tti<-t0
-    sfi$hazard<-sfi$haz0* exp(bet[1]*xdata[i] + 
-                                bet[2]*zdata[i] + bet[3]*zdata[i]*(sfi$time-tti) + bet[4]*zdata[i]*(sfi$time-tti)^2 +
-                                bet[5]*g1(tti) + bet[6]*g2(tti))
-    sfi$Haz <- cumsum(sfi$hazard)
-    tmp <- evalstep(sfi$time,sfi$Haz,c(tti,tti+w_predict),subst=0)
-    Fw <- c(Fw,1-exp(-(tmp[2]-tmp[1])))
-  }
-  return(Fw)
-}
-
-#LMInt3
-BSpredict_LMInt3<-function(bh,bet,zdata,t0,xdata,w_predict)
-{
-  nt <- length(zdata)
-  Fw <- NULL
-  sfi<-bh
-  sfi$haz0<-diff(c(0,sfi$hazard))
-  for(i in 1:nt)
-  {
-    tti<-t0
-    sfi$hazard<-sfi$haz0* exp(bet[1]*xdata[i] + 
-                                bet[2]*zdata[i] + bet[3]*zdata[i]*(sfi$time-tti) + bet[4]*zdata[i]*(sfi$time-tti)^2 +
-                                bet[5]*xdata[i]*zdata[i] + 
-                                bet[6]*g1(tti) + bet[7]*g2(tti)) 
-    sfi$Haz <- cumsum(sfi$hazard)
-    tmp <- evalstep(sfi$time,sfi$Haz,c(tti,tti+w_predict),subst=0)
-    Fw <- c(Fw,1-exp(-(tmp[2]-tmp[1])))
-  }
-  return(Fw)
-}
-
-#LM4
-BSpredict_LM4<-function(bh,bet,zdata,t0,xdata,w_predict)
-{
-  nt <- length(zdata)
-  Fw <- NULL
-  sfi<-bh
-  sfi$haz0<-diff(c(0,sfi$hazard))
-  for(i in 1:nt)
-  {
-    tti<-t0
-    sfi$hazard<-sfi$haz0* exp(bet[1]*xdata[i] + 
-                                bet[2]*zdata[i] + bet[3]*zdata[i]*tti + bet[4]*zdata[i]*tti^2 + 
-                                bet[5]*zdata[i]*(sfi$time-tti) + bet[6]*zdata[i]*(sfi$time-tti)^2 +
-                                bet[7]*g1(tti) + bet[8]*g2(tti))
-    sfi$Haz <- cumsum(sfi$hazard)
-    tmp <- evalstep(sfi$time,sfi$Haz,c(tti,tti+w_predict),subst=0)
-    Fw <- c(Fw,1-exp(-(tmp[2]-tmp[1])))
-  }
-  return(Fw)
-}
-
-#LMInt4
-BSpredict_LMInt4<-function(bh,bet,zdata,t0,xdata,w_predict)
-{
-  nt <- length(zdata)
-  Fw <- NULL
-  sfi<-bh
-  sfi$haz0<-diff(c(0,sfi$hazard))
-  for(i in 1:nt)
-  {
-    tti<-t0
-    sfi$hazard<-sfi$haz0* exp(bet[1]*xdata[i] + 
-                                bet[2]*zdata[i] + bet[3]*zdata[i]*tti + bet[4]*zdata[i]*tti^2 + 
-                                bet[5]*zdata[i]*(sfi$time-tti) + bet[6]*zdata[i]*(sfi$time-tti)^2 +
-                                bet[7]*zdata[i]*xdata[i] + 
-                                bet[8]*g1(tti) + bet[9]*g2(tti))
-    sfi$Haz <- cumsum(sfi$hazard)
-    tmp <- evalstep(sfi$time,sfi$Haz,c(tti,tti+w_predict),subst=0)
-    Fw <- c(Fw,1-exp(-(tmp[2]-tmp[1])))
-  }
-  return(Fw)
-}
-
 #######################################################
 #Joint Models 
 #######################################################
@@ -208,6 +90,7 @@ BSpredict_JM<-function(JM_mod,sub_data,t0,w_predict,sim)
 {
   pred_cond<-survfitJM(JM_mod,
                        newdata=sub_data,
+                       last.time=rep(t0,length(unique(sub_data$id))),
                        idVar="id",survTimes = t0+w_predict,simulate=sim)
   if(sim==FALSE)
   {
@@ -245,28 +128,28 @@ BSpredict_Truth<-function(trueVals,sub_data,t0,w_predict)
 ########################################################
 #Copula Prediction function 
 ########################################################
-BSpredict_Copula<-function(zdata,t0,xdata,w_predict,mean_string,sd_string,F_T_dat,FT_string,rho_string,obs.time=t0) #,v)
+BSpredict_Copula<-function(zdata,t0,xdata,w_predict,mean_string,sd_string,F_T_dat,FT_string,rho_string,obs.time=t0,cop_string,v=NA)
 {
   covdat_Z<-data.frame(LM=obs.time,group=xdata)
   
   covdat_rho<-data.frame(LM=t0,group=xdata)
   
   #modZ
-  xmat.mean.pred<-model.matrix(mods.red[[mean_string]],covdat_Z)
-  xmat.sd.pred<-model.matrix(mods.red[[sd_string]],covdat_Z)
-  modZ_vals<-predict(get(paste0("mod_Zstar_full_mean",mean_string,"_sd",sd_string)),xmat.mean.pred,xmat.sd.pred)
+  xmat.mean.pred<-model.matrix(mods_Z[[mean_string]],covdat_Z)
+  xmat.sd.pred<-model.matrix(mods_Z[[sd_string]],covdat_Z)
+  modZ_vals<-predict(get(paste0("mod_Z_full_mean",mean_string,"_sd",sd_string)),xmat.mean.pred,xmat.sd.pred)
   meanZ<-modZ_vals[,1]
   sdZ<-modZ_vals[,2]
   
-  rho_param<-get(paste0("MLE_rho",rho_string,"_mean",mean_string,"_sd",sd_string,"_",FT_string))
+  rho_param<-get(paste0("MLE_rho",rho_string,"_mean",mean_string,"_sd",sd_string,"_",FT_string,"_",cop_string))
   
-  coef_dat<-model.matrix(mods[[rho_string]],data=covdat_rho)
+  coef_dat<-model.matrix(mods_rho[[rho_string]],data=covdat_rho)
   
-  eta_Ystar_LM<-coef_dat%*%rho_param
-  rho_LM<-1-2/(1+exp(2*eta_Ystar_LM))
+  eta_Y_LM<-coef_dat%*%rho_param
+  rho_LM<-1-2/(1+exp(2*eta_Y_LM))
   
-  fZ_pred<-f_Zstar(zstar=zdata,mean=meanZ,sigma_Zstar=sdZ)
-  FZ_pred<-F_Zstar(zstar=zdata,mean=meanZ,sigma_Zstar=sdZ,log.prob=TRUE)
+  fZ_pred<-f_Z(z=zdata,mean=meanZ,sigma_Z=sdZ)
+  FZ_pred<-F_Z(z=zdata,mean=meanZ,sigma_Z=sdZ,log.prob=TRUE)
   
   FT_tau_w_cond<-F_T_dat[,FT_string]
   
