@@ -5,4 +5,4 @@ This repository contains R code for the simulation and real data analysis. The v
 
 The R script "SimulationCode.R" contains the code for generating data under Simulation Scenario 1a and fitting the joint, landmark, and copula models (including the code for maximum likelihood estimation under the Gaussian and Student t copula). It requires loading "PredictionFunctions.R", which contains the functions to obtain the dynamic predictions for the joint, landmark, and copula models.
 
-For the real data analysis, the R data set heart.valve was used from the joineR package. The code to produce Figures 5 and 6 are in the R script "HVData.R". 
+For the real data analysis, the R data set heart.valve was used from the joineR package. 
