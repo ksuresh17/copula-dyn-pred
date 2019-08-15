@@ -2,19 +2,10 @@
 #Code for application of Copula method to heart valve data 
 ########################
 rm(list=ls())
-library(SmoothHazard)
 library(dynpred)
-library(lava)
-library(prodlim)
-library(mstate)
-library(reshape2)
-library(ggplot2)
-library(cowplot)
-library(plyr)
 library(pbivnorm)
 library(splines)
 library(lmvar)
-
 library(JM)
 library(joineR)
 
@@ -63,8 +54,6 @@ g1<-function(t) t
 g2<-function(t) t^2
 LMdata2$LM1<-g1(LMdata2$LM)
 LMdata2$LM2<-g2(LMdata2$LM)
-
-LMdata2<-subset(LMdata2,LMdata2$wsurvtime-LMdata2$Tstart>.0001)
 
 ####################################################################
 #Landmark Models
@@ -124,34 +113,17 @@ BSpredict_LMInt3<-function(bh,bet,zdata,t0,age_data,sex_data,hs_data,w_predict)
 lmeFit<-lme(log.lvmi~time+age+hs+sex,data=heart.valve,random=~1|num)
 survFit <- coxph(Surv(fuyrs, status) ~ age+hs+sex, data = dat.id,
                  x = TRUE)
-jointFit1 <- jointModel(lmeFit, survFit, timeVar = "time") #,method="Cox-PH-GH")
+jointFit1 <- jointModel(lmeFit, survFit, timeVar = "time") 
 
 lmeFit2<-lme(log.lvmi~time+age+hs+sex,data=heart.valve,random=~time|num)
 survFit2 <- coxph(Surv(fuyrs, status) ~ age+hs+sex, data = dat.id,
                   x = TRUE)
-jointFit2 <- jointModel(lmeFit2, survFit2, timeVar = "time") #,method="Cox-PH-GH")
+jointFit2 <- jointModel(lmeFit2, survFit2, timeVar = "time") 
 
 lmeFit3<-lme(log.lvmi~time+age+hs+sex+time:hs+time:sex,data=heart.valve,random=~time|num)
 survFit3 <- coxph(Surv(fuyrs, status) ~ age+hs+sex, data = dat.id,
                   x = TRUE)
-jointFit3 <- jointModel(lmeFit3, survFit3, timeVar = "time") #,method="Cox-PH-GH")
-
-#Prediction function for JMs
-BSpredict_JM<-function(JM_mod,sub_data,t0,w_predict,sim=TRUE)
-{
-  pred_cond<-survfitJM(JM_mod,
-                       newdata=sub_data,
-                       idVar="id",survTimes = t0+w_predict,simulate=sim)
-  if(sim==FALSE)
-  {
-    Fw<-1-t(matrix(unlist(pred_cond$summaries),nrow=2))[,2]
-  } else 
-  {
-    Fw<-1-t(matrix(unlist(pred_cond$summaries),nrow=5))[,2]
-  }
-  return(Fw)
-}
-
+jointFit3 <- jointModel(lmeFit3, survFit3, timeVar = "time") 
 ##################################################################################################
 #COPULA
 ##################################################################################################
@@ -190,7 +162,7 @@ F_T_func_cond<-function(dat)
   
   sfi<-lapply(sfi,function(x) data.frame(x,Haz=cumsum(x$haz)))
   tmp<-lapply(sfi,function(x) evalstep(x$time,x$Haz,c(tt,tt_LM),subst=0))
-  Fw<-lapply(tmp,function(x) ((1-exp(-x[1]))-(1-exp(-x[2])))/exp(-x[2]))  #-exp(-x[1])/exp(-x[2])+1) #(-exp(-x[1])+exp(-x[2]))/(exp(-x[2])))
+  Fw<-lapply(tmp,function(x) ((1-exp(-x[1]))-(1-exp(-x[2])))/exp(-x[2]))  
   
   Fw_weib_tt<-exp(-(tt/scale.weib)^shape.weib*exp(coef.weib%*%xdata1))
   Fw_weib_tt_LM<-exp(-(tt_LM/scale.weib)^shape.weib*exp(coef.weib%*%xdata1))
@@ -378,152 +350,4 @@ BSpredict_Copula<-function(zdata,t0,age_data,hs_data,sex_data,w_predict,mean_str
     Fw<-c(Fw,pred)
   }
   return(Fw)
-}
-
-BSpredict_Copula_Vec<-Vectorize(BSpredict_Copula,"w_predict")
-BSpredict_JM_Vec<-Vectorize(BSpredict_JM,"w_predict")
-BSpredict_LMInt3_Vec<-Vectorize(BSpredict_LMInt3,"w_predict")
-
-#########################################################
-#Figure creation (Comparison of methods)
-#########################################################
-#Select people still alive at LM1
-LM_pred<-1
-sub_LM1<-subset(LMdata,LMdata$survtime>LM_pred&LMdata$time<=LM_pred)
-#Take last available marker measurement
-sub2_LM1<-aggregate(sub_LM1, by = list(sub_LM1$id), FUN = tail, n = 1)
-#Find quantiles of lvmi at that time
-qlvmi<-quantile(sub2_LM1$log.lvmi)
-# 0%      25%      50%      75%     100% 
-# 4.244344 4.785697 4.999709 5.257337 6.351775 
-sub2_LM1$cutlvmi<-cut(sub2_LM1$log.lvmi,c(0,5,10),include.lowest = TRUE)
-qlvmi<-c(4.8,5.3)
-
-palette_cols<-c("blue"='#377eb8',"red"='#e41a1c',"green"='#74c476')
-par(mfrow=c(2,2))
-#Plots of KM curves 
-#Male, Stentless, llvmi<5
-plot.times<-seq(0.1,10,.5)
-i=1 
-sex_ind=0
-hs_ind=0
-plot.dat<-subset(sub2_LM1,hs==hs_ind&cutlvmi==levels(sub2_LM1$cutlvmi)[i]&sub2_LM1$sex==sex_ind)
-age_ind=median(plot.dat$age)
-Cop_pred<-1-BSpredict_Copula_Vec(zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,hs_data=hs_ind,sex_data=sex_ind,
-                                 w_predict=plot.times,mean_string="bsp",sd_string="const",FT_string="weib",rho_string="simp") 
-JMsim_pred=1-BSpredict_JM_Vec(jointFit2,sub_data=data.frame(age=age_ind,sex=sex_ind,hs=hs_ind,id=301,log.lvmi=qlvmi[i],time=LM_pred),t0=LM_pred,w_predict=plot.times,sim=TRUE)
-LMInt3_pred=1-BSpredict_LMInt3_Vec(bh=bh_supercox3Int,bet=coef(LMsupercox3Int),zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,sex_data=sex_ind,
-                                   hs_data=hs_ind,w_predict=plot.times)
-
-plot(survfit(Surv(fuyrs,status)~1,data=plot.dat),lty=1,conf.int=FALSE,xlim=c(0,10),lwd=2,xlab="Time (years)",ylab="Survival Probability",
-     main="Male, Stentless, log(LVMI)<5",ylim=c(0,1))
-lines(x=plot.times+LM_pred,y=Cop_pred,lty=2,col=palette_cols[1],lwd=2)
-lines(x=plot.times+LM_pred,y=JMsim_pred,lty=3,col=palette_cols[2],lwd=2)
-lines(x=plot.times+LM_pred,y=LMInt3_pred,lty=4,col=palette_cols[3],lwd=2)
-abline(v=1,lty=2)
-legend("bottomright",c("Kaplan-Meier","Copula","Joint Model","Landmark Model"),col=c("black",palette_cols[1:3]),lwd=2,lty=1:4)
-
-#Male, Homograft, llvmi<5
-i=1
-sex_ind=0
-hs_ind=1
-plot.dat<-subset(sub2_LM1,hs==hs_ind&cutlvmi==levels(sub2_LM1$cutlvmi)[i]&sub2_LM1$sex==sex_ind)
-age_ind=median(plot.dat$age)
-Cop_pred<-1-BSpredict_Copula_Vec(zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,hs_data=hs_ind,sex_data=sex_ind,
-                                 w_predict=plot.times,mean_string="bsp",sd_string="const",FT_string="weib",rho_string="simp") 
-JMsim_pred=1-BSpredict_JM_Vec(jointFit2,sub_data=data.frame(age=age_ind,sex=sex_ind,hs=hs_ind,id=301,log.lvmi=qlvmi[i],time=LM_pred),t0=LM_pred,w_predict=plot.times,sim=TRUE)
-LMInt3_pred=1-BSpredict_LMInt3_Vec(bh=bh_supercox3Int,bet=coef(LMsupercox3Int),zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,sex_data=sex_ind,
-                                   hs_data=hs_ind,w_predict=plot.times)
-
-plot(survfit(Surv(fuyrs,status)~1,data=plot.dat),lty=1,conf.int=FALSE,xlim=c(0,10),lwd=2,xlab="Time (years)",ylab="Survival Probability",
-     main="Male, Homograft, log(LVMI)<5",ylim=c(0,1))
-lines(x=plot.times+LM_pred,y=Cop_pred,lty=2,col=palette_cols[1],lwd=2)
-lines(x=plot.times+LM_pred,y=JMsim_pred,lty=3,col=palette_cols[2],lwd=2)
-lines(x=plot.times+LM_pred,y=LMInt3_pred,lty=4,col=palette_cols[3],lwd=2)
-abline(v=1,lty=2)
-
-#Male, Stentless, llvmi>5
-i=2 
-sex_ind=0
-hs_ind=0
-plot.dat<-subset(sub2_LM1,hs==hs_ind&cutlvmi==levels(sub2_LM1$cutlvmi)[i]&sub2_LM1$sex==sex_ind)
-age_ind=median(plot.dat$age)
-Cop_pred<-1-BSpredict_Copula_Vec(zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,hs_data=hs_ind,sex_data=sex_ind,
-                                 w_predict=plot.times,mean_string="bsp",sd_string="const",FT_string="weib",rho_string="simp") 
-JMsim_pred=1-BSpredict_JM_Vec(jointFit2,sub_data=data.frame(age=age_ind,sex=sex_ind,hs=hs_ind,id=301,log.lvmi=qlvmi[i],time=LM_pred),t0=LM_pred,w_predict=plot.times,sim=TRUE)
-LMInt3_pred=1-BSpredict_LMInt3_Vec(bh=bh_supercox3Int,bet=coef(LMsupercox3Int),zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,sex_data=sex_ind,
-                                   hs_data=hs_ind,w_predict=plot.times)
-
-plot(survfit(Surv(fuyrs,status)~1,data=plot.dat),lty=1,conf.int=FALSE,xlim=c(0,10),lwd=2,xlab="Time (years)",ylab="Survival Probability",
-     main="Male, Stentless, log(LVMI)>5")
-lines(x=plot.times+LM_pred,y=Cop_pred,lty=2,col=palette_cols[1],lwd=2)
-lines(x=plot.times+LM_pred,y=JMsim_pred,lty=3,col=palette_cols[2],lwd=2)
-lines(x=plot.times+LM_pred,y=LMInt3_pred,lty=4,col=palette_cols[3],lwd=2)
-abline(v=1,lty=2)
-
-#Male, Homograft, llvmi>5
-i=2
-sex_ind=0
-hs_ind=1
-plot.dat<-subset(sub2_LM1,hs==hs_ind&cutlvmi==levels(sub2_LM1$cutlvmi)[i]&sub2_LM1$sex==sex_ind)
-age_ind=median(plot.dat$age)
-Cop_pred<-1-BSpredict_Copula_Vec(zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,hs_data=hs_ind,sex_data=sex_ind,
-                                 w_predict=plot.times,mean_string="bsp",sd_string="const",FT_string="weib",rho_string="simp") 
-JMsim_pred=1-BSpredict_JM_Vec(jointFit2,sub_data=data.frame(age=age_ind,sex=sex_ind,hs=hs_ind,id=301,log.lvmi=qlvmi[i],time=LM_pred),t0=LM_pred,w_predict=plot.times,sim=TRUE)
-LMInt3_pred=1-BSpredict_LMInt3_Vec(bh=bh_supercox3Int,bet=coef(LMsupercox3Int),zdata=qlvmi[i],t0=LM_pred,age_data=age_ind,sex_data=sex_ind,
-                                   hs_data=hs_ind,w_predict=plot.times)
-
-plot(survfit(Surv(fuyrs,status)~1,data=plot.dat),lty=1,conf.int=FALSE,xlim=c(0,10),lwd=2,xlab="Time (years)",ylab="Survival Probability",
-     main="Male, Homograft, log(LVMI)>5")
-lines(x=plot.times+LM_pred,y=Cop_pred,lty=2,col=palette_cols[1],lwd=2)
-lines(x=plot.times+LM_pred,y=JMsim_pred,lty=3,col=palette_cols[2],lwd=2)
-lines(x=plot.times+LM_pred,y=LMInt3_pred,lty=4,col=palette_cols[3],lwd=2)
-abline(v=1,lty=2)
-
-#########################################################
-#Figure creation: Predicted probabilities for two patients
-#########################################################
-#Individual A: Stentless, age 72, Male, no Death
-p56<-subset(long_data,num==56)
-#Individual B: Homograft, age 78, Male, Death
-p76<-subset(long_data,num==76)
-
-#Create plot of survival curve by time and log.lvmi observation 
-#Individual A
-par(mfrow=c(1,4))
-sub.plot<-p56
-for(i in 1:4)
-{  
-  plot.times<-seq(0,3,by=.1)
-  par(mar=c(5,5,2,5))
-  plot(x=sub.plot$time[1:i],y=sub.plot$log.lvmi[1:i],pch=16,ylim=c(4.8,5.2),xlab="Time (years)",ylab="log(LVMI)",xlim=c(0,8),cex.axis=1.2,cex=1.5,cex.lab=1.2)
-  BS_pred<-1-BSpredict_Copula_Vec(zdata=sub.plot$log.lvmi[i],t0=sub.plot$time[i],age_data=sub.plot$age,hs_data=sub.plot$hs,sex_data=sub.plot$sex,
-                                  w_predict=plot.times,mean_string="bsp",sd_string="const",FT_string="cox",rho_string="simp")
-  
-  par(new=TRUE)
-  plot(x=c(0,plot.times)+sub.plot$time[i],c(1,BS_pred),type="l",ylim=c(0,1),xlim=c(0,8),xlab=NA,ylab=NA,axes=FALSE,lwd=2,col=cols[1])
-  
-  abline(v=sub.plot$time[i],lty=2)
-  axis(side=4,las=2, cex.axis=1.2)
-  mtext(side=4,line=3,"Survival Probability",cex=0.8)
-}
-
-#Individual B
-par(mfrow=c(1,4))
-sub.plot<-p76
-for(i in 1:4)
-{  
-  plot.times<-seq(0,3,by=.1)
-  par(mar=c(5,5,2,5))
-  plot(x=sub.plot$time[1:i],y=sub.plot$log.lvmi[1:i],pch=16,ylim=c(5,5.5),xlab="Time (years)",ylab="log(LVMI)",xlim=c(0,8),cex.axis=1.2,cex=1.5,cex.lab=1.2)
-  BS_pred<-1-BSpredict_Copula_Vec(zdata=sub.plot$log.lvmi[i],t0=sub.plot$time[i],age_data=sub.plot$age,hs_data=sub.plot$hs,sex_data=sub.plot$sex,
-                                  w_predict=plot.times,mean_string="bsp",sd_string="const",FT_string="cox",rho_string="simp")
-  
-  par(new=TRUE)
-  plot(x=c(0,plot.times)+sub.plot$time[i],c(1,BS_pred),type="l",ylim=c(0,1),xlim=c(0,8),xlab=NA,ylab=NA,axes=FALSE,lwd=2,col=palette_cols[1])
-  
-  abline(v=sub.plot$time[i],lty=2)
-  abline(v=sub.plot$fuyrs[i],lwd=2,lty=3,col="blue")
-  axis(side=4,las=2, cex.axis=1.2)
-  mtext(side=4,line=3,"Survival Probability",cex=1)
 }
